@@ -11,6 +11,9 @@ pub use constants::*;
 pub mod instructions;
 pub use instructions::*;
 
+pub mod errors;
+pub use errors::*;
+
 #[program]
 pub mod marketplace {
     use super::*;

@@ -11,7 +11,7 @@ pub struct Initialize<'info>{
     #[account(
         init,
         payer = admin,
-        seeds=[b"marketplace", admin.key().as_ref()],
+        seeds=[b"marketplace"],
         space = DISCRIMINATOR + Marketplace::INIT_SPACE,
         bump
     )]

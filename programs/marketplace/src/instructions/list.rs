@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::{
     associated_token::AssociatedToken,
+    metadata::{MasterEditionAccount, Metadata, MetadataAccount},
     token_interface::{Mint,TokenAccount,TokenInterface,TransferChecked, transfer_checked}
 };
 
@@ -23,11 +24,17 @@ pub struct List<'info>{
     )]
     pub seller_nft_account:InterfaceAccount<'info,TokenAccount>,
 
+       #[account(
+        seeds=[b"marketplace"],
+        bump
+    )]
+    pub marketplace_state:Account<'info,Marketplace>,
+
     #[account(
         init,
         payer = seller,
         space = DISCRIMINATOR + Listing::INIT_SPACE,
-        seeds = [b"listing", seller.key().as_ref(), nft_mint.key().as_ref()],
+        seeds = [b"listing",marketplace_state.key().as_ref(), seller.key().as_ref(), nft_mint.key().as_ref()],
         bump
     )]
     pub listing_state:Account<'info,Listing>,
@@ -40,10 +47,39 @@ pub struct List<'info>{
         associated_token::token_program = token_program
     )]
     pub vault: InterfaceAccount<'info,TokenAccount>,
+    
+    pub collection_mint:InterfaceAccount<'info,Mint>,
+
+    #[account(
+        seeds=[
+            b"metadata",
+            metadata_program.key().as_ref(),
+            nft_mint.key().as_ref()
+        ],
+        seeds::program = metadata_program.key(),
+        bump,
+        constraint = metadata.collection.as_ref().unwrap().key.as_ref()== collection_mint.key().as_ref(),
+        constraint = metadata.collection.as_ref().unwrap().verified == true
+        )]
+        pub metadata:Account<'info,MetadataAccount>,
+
+        #[account(
+            seeds = [
+                b"metadata",
+                metadata_program.key().as_ref(),
+                nft_mint.key().as_ref()
+            ],
+            seeds::program = metadata_program.key(),
+            bump
+        )]
+        pub master_edition:Account<'info,MasterEditionAccount>,
+
+
 
     pub system_program:Program<'info,System>,
     pub token_program:Interface<'info, TokenInterface>,
-    pub associated_token_program:Program<'info,AssociatedToken>
+    pub associated_token_program:Program<'info,AssociatedToken>,
+    pub metadata_program:Program<'info,Metadata>
 
 }
 
