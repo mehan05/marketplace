@@ -84,23 +84,22 @@ pub struct List<'info>{
 }
 
 impl <'info> List<'info>{
-    pub fn list_nft(&mut self,seller:Pubkey,price:u64,nft_mint:Pubkey,is_active:bool,bumps:ListBumps)->Result<()>{
-        self.initialize_listing(seller, price, nft_mint, is_active, bumps);
+    pub fn list_nft(&mut self,price:u64,bumps:ListBumps)->Result<()>{
+        self.initialize_listing( price ,bumps);
 
         self.transfer_nft_vault();
 
         Ok(())
     }
 
-    pub fn initialize_listing(&mut self,seller:Pubkey,price:u64,nft_mint:Pubkey,
-    is_active:bool,bumps:ListBumps)->Result<()>{
+    pub fn initialize_listing(&mut self,price:u64,bumps:ListBumps)->Result<()>{
 
         self.listing_state.set_inner(Listing{
-            seller:seller,
+            seller:self.seller.key(),
             price:price,
-            nft_mint:nft_mint,
+            nft_mint:self.nft_mint.key(),
             bump:bumps.listing_state,
-            is_active:is_active
+            is_active:true
         });
 
         Ok(())

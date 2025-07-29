@@ -20,12 +20,13 @@ pub struct Purchase<'info>{
 
 
     #[account(
-        seeds = [b"listing", seller.key().as_ref(), nft_mint.key().as_ref()],
-        bump
+        seeds = [b"listing",marketplace_state.key().as_ref(), seller.key().as_ref(), nft_mint.key().as_ref()],
+        bump = listing_state.bump
     )]
     pub listing_state:Account<'info,Listing>,
 
         #[account(
+            mut,
         associated_token::mint = nft_mint,
         associated_token::authority = listing_state,
         associated_token::token_program = token_program
@@ -34,7 +35,8 @@ pub struct Purchase<'info>{
 
 
     #[account(
-        mut,
+        init_if_needed,
+        payer=buyer,
         associated_token::mint = nft_mint,
         associated_token::authority = buyer
     )]
@@ -43,12 +45,13 @@ pub struct Purchase<'info>{
 
      #[account(
         seeds=[b"marketplace"],
-        bump
+        bump = marketplace_state.bump
     )]
     pub marketplace_state:Account<'info,Marketplace>,
 
 
     #[account(
+        mut,
         seeds = [b"comisssion",marketplace_state.key().as_ref()],
         bump
     )]
@@ -61,11 +64,12 @@ pub struct Purchase<'info>{
 
 impl<'info> Purchase<'info>{
     pub fn purchase(& mut self)->Result<()>{
-        require!(self.listing_state.is_active,MarketplaceError::ListingNotOpen);
+        require!(self.listing_state.is_active&& self.listing_state.seller==self.seller.key(),MarketplaceError::ListingNotOpen);
 
-        let buyerBalance = self.buyer.to_account_info().lamports as u64;
+        let comission_fee = self.listing_state.price.checked_mul(self.marketplace_state.comission_fee).ok_or(MarketplaceError::Overflow)?.checked_div(100).ok_or(MarketplaceError::Overflow)?;
 
-        require!(buyerBalance>=self.listing_state.price,MarketplaceError::InsufficuentAmount);
+        let seller_fee = self.listing_state.price.checked_sub(comission_fee).ok_or(MarketplaceError::Overflow)?;
+
 
         let cpi_program_for_sol_transfer = self.system_program.to_account_info();
 
@@ -77,16 +81,11 @@ impl<'info> Purchase<'info>{
             authority:self.buyer.to_account_info()
         };
 
-        let ctx = CpiContext::new(cpi_program_for_sol_transfer,cpi_accounts);
+        let ctx = CpiContext::new(cpi_program_for_sol_transfer.clone(),cpi_accounts);
 
-        transfer(ctx, self.listing_state.price);
+        transfer(ctx, seller_fee);
 
 
-        let comission_fee = (self.listing_state.price*self.marketplace_state.comission_fee)/100;
-
-        let buyerBalance = self.buyer.to_account_info().lamports;
-
-        require!(buyerBalance>=self.listing_state.price,MarketplaceError::InsufficuentAmount);
 
 
           let cpi_accounts = Transfer{
@@ -100,11 +99,14 @@ impl<'info> Purchase<'info>{
         transfer(ctx, comission_fee);
 
 
+        let marketplace_state = self.marketplace_state.key();
+        let seller = self.seller.key();
+        let nft_mint = self.nft_mint.key();
         let seeds = [
             b"listing",
-            self.marketplace_state.key().as_ref(),
-            self.seller.key().as_ref(),
-            self.nft_mint.key().as_ref(),
+            marketplace_state.as_ref(),
+            seller.as_ref(),
+            nft_mint.as_ref(),
             &[self.listing_state.bump]
         ];
 

@@ -7,5 +7,8 @@ pub enum MarketplaceError{
 
 
     #[msg("Insufficient amount")]
-    InsufficuentAmount
+    InsufficuentAmount,
+
+    #[msg("overflow error")]
+    Overflow
 }
